@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { font: 15px Helvetica, Arial; height: 100% }
+      form { border-radius: 5px; max-width: 960px; background: #ccc; padding: 3px; position: absolute; bottom: 0; width: 100%; }
+      form input { border-radius: 5px; border: 1px solid black; padding: 10px; width: 90%; margin-right: 0.5%; }
+      form button { font: 15px Helvetica, Arial; font-weight: 900; color: white; border-radius: 5px; width: 9%; background: #2f7bed; border: none; padding: 8px; }
+      .grid-container { height: 100%; margin: auto; display: grid; width: 100%; max-width: 960px;}
+      .input-container { grid-column: 1 / span 14; grid-row: 15;}
+      .messages-container { max-width: 810px; overflow: scroll; grid-column: 1 / span 14; grid-row: 1 / span 14;}
+      .users-container { max-width: 150px; text-align: center; grid-column: 15; grid-row: 1 / span 14; background: #ccc; list-style-type: none;  padding: 6px;}
+      #messages { list-style-type: none;  margin-bottom: 31px; padding: 0; }
+      #messages li { padding: 10px 15px; border-radius: 5px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      #users { background: #ccc; list-style-type: none; margin: 0; padding: 0; }
+      #the-user { background: #ccc; list-style-type: none; margin: 0; padding: 0; }
+    </style>
+  </head>
+
+  <body>
+    <div class="grid-container">
+      
+      <div class="users-container">
+        <p style="font-weight: 900;"> All Online Users: </p>
+        <div id="the-user"></div>
+        <ul id="users"></ul>
+      </div>
+
+      <div class="messages-container">
+        <ul id="messages"></ul>
+      </div>
+
+      <div class="input-container">
+        <form action="">
+          <input id="m" autocomplete="off" /><button>Send</button>
+        </form>
+      </div>
+
+      <script src="/socket.io/socket.io.js"></script>
+      <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+      <script>
+        $(function () {
+          var socket = io();
+          var username = '';
+          $('form').submit(function(e) {
+            e.preventDefault();
+            socket.emit('chat message', $('#m').val());
+            $('#m').val('');
+            return false;
+          });
+
+          /* set appropriate cookies */
+          socket.on('set cookie', function(username) { 
+            document.cookie = `username=${username}`;
+          });
+
+          /* send cookie to server to check if set, and if so update info accordingly */
+          socket.on('check cookie', function() {
+            socket.emit('check cookie', document.cookie);
+          });
+
+          /* display a new chat message */
+          socket.on('chat message', function(msg) {
+            $('#messages').append($('<li>').html(msg));
+              $('.messages-container').scrollTop($('#messages').height()); 
+          });
+
+          /* bold chat messages the user sends */
+          socket.on('chat message styled', function(msg) {
+            $('#messages').append($('<li style="font-weight: 900;">').html(msg));
+            $('.messages-container').scrollTop($('#messages').height()); 
+          });
+
+          /* when a new user connects show them their username... */
+          socket.on('new user', function(user) {
+            $('#the-user').empty();
+            var this_user = user + " (You)"
+            $('#the-user').append($('<p style="font-weight: 900;">').html(this_user));
+            username = user;
+          });
+
+          /* ...and show all the online users... */
+          socket.on('online users', function(users) {
+            $('#users').empty();
+            for( var i = 0; i < users.length; i++ ) {
+              if(users[i] !== username) {
+                $('#users').append($('<li>').html(users[i]));
+              }
+            }
+          });
+
+          /* ...and display the chat log to them */
+          socket.on('chat log', function(log) {
+            $('#messages').empty();
+            for( var i = 0; i < log.length; i++ ) {
+              var line = log[i];
+              var words = line.split('-A!A@A#A$A%-');
+              var message = words[1];
+              $('#messages').append($('<li>').html(message));
+            }
+            $('.messages-container').scrollTop($('#messages').height()); 
+          });
+        });
+      </script>
+    </div>
+  </body>
+
+</html>
